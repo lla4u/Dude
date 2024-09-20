@@ -1,0 +1,46 @@
+services:
+  influxdb:
+    image: influxdb:2.7.8-alpine
+    container_name: dude-influxdb
+    restart: unless-stopped
+    ports:
+      - 8086:8086
+    volumes:
+      - ./Docker/InfluxDB/data:/var/lib/influxdb2
+      - ./Docker/InfluxDB/config:/etc/influxdb2
+    environment:
+      DOCKER_INFLUXDB_INIT_MODE: setup
+      DOCKER_INFLUXDB_INIT_USERNAME: ${INFLUXDB_USERNAME}
+      DOCKER_INFLUXDB_INIT_PASSWORD: ${INFLUXDB_PASSWORD}
+      DOCKER_INFLUXDB_INIT_ORG: dude
+      DOCKER_INFLUXDB_INIT_BUCKET: dude
+      DOCKER_INFLUXDB_INIT_ADMIN_TOKEN: my-super-secret-auth-token
+
+  grafana:
+    image: grafana/grafana:7.5.6
+    container_name: dude-grafana
+    restart: unless-stopped
+    # if you are running as root then set it to 0
+    # else find the right id with the id -u command
+    user: '0'
+    ports:
+      - 3000:3000
+    volumes:
+      # provision datasource & dashboard
+      - ./config/grafana/:/etc/grafana/provisioning
+      # save data on laptop
+      - ./Docker/Grafana/data:/var/lib/grafana
+    environment:
+      - GF_INSTALL_PLUGINS=pr0ps-trackmap-panel
+    depends_on:
+      - influxdb
+  # cli:
+  #    build:
+  #      context: ./Go/
+  #      dockerfile: ../Dockerfile
+  #    container_name: dude-cli
+  #    tty: true  
+  #    volumes:
+  #      - ./Datalogs:/mnt
+  #    depends_on:
+  #      - influxdb
