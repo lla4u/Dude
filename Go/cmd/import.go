@@ -51,10 +51,7 @@ var importCmd = &cobra.Command{
 			}
 		}
 
-		// TODO
-		// Make the http client here
-
-		// Import the missing datalogs
+		// Import the missing datalogs if needed
 		if len(datalogsToImport) == 0 {
 			fmt.Println("Nothing to do!")
 		} else {

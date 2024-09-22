@@ -184,15 +184,14 @@ func Import(file string, verbose bool, url string, token string) {
 	var gpsDateTime string
 	influxCount := 0
 
-	// Create temp file that will hold Line protocol data
-	f, err := os.CreateTemp("", "InfluxLineProtocol.*.txt")
+	// Create file that will hold Influx Line Protocol data
+	ilpFile, err := os.Create("InfluxLineProtocol.txt")
 	if err != nil {
 		panic(err)
 	}
-	defer os.Remove(f.Name())
+	defer ilpFile.Close()
 
-	// c should be re-used for further calls
-	c := httpClient()
+	//	defer os.Remove(f.Name())
 
 	// Consume channel
 	for r := range readChannel {
@@ -214,7 +213,7 @@ func Import(file string, verbose bool, url string, token string) {
 					// fmt.Printf("%+v\n", r)
 				}
 				// Save record data into the temp file
-				fmt.Fprintf(f, "datalog lat=%f,lon=%f,alt=%s,GS=%s,IAS=%s,TAS=%s,VSpeed=%d,Volts=%s,Amps=%.2f,CHTR=%.2f,CHTL=%.2f,EGT1=%d,EGT2=%d,Pitch=%.2f,Roll=%.2f,Mag=%.2f,VertAccel=%.2f,LatAccel=%.2f,OAT=%d,OilTemp=%d,OilPress=%d,RPM=%d,MAP=%.2f,FuelPress=%.2f,FuelFlow=%.2f,FuelRemaining=%.2f %d\n",
+				fmt.Fprintf(ilpFile, "datalog lat=%f,lon=%f,alt=%s,GS=%s,IAS=%s,TAS=%s,VSpeed=%d,Volts=%s,Amps=%.2f,CHTR=%.2f,CHTL=%.2f,EGT1=%d,EGT2=%d,Pitch=%.2f,Roll=%.2f,Mag=%.2f,VertAccel=%.2f,LatAccel=%.2f,OAT=%d,OilTemp=%d,OilPress=%d,RPM=%d,MAP=%.2f,FuelPress=%.2f,FuelFlow=%.2f,FuelRemaining=%.2f %d\n",
 					StringToFloat(r.Lat, verbose),
 					StringToFloat(r.Lon, verbose),
 					r.Alt,
@@ -253,11 +252,12 @@ func Import(file string, verbose bool, url string, token string) {
 		csvCount++
 
 	}
+	ilpFile.Close()
 
 	// Flush Line protocol temp file
-	response := sendRequest(c, f, url, token)
+	response := sendRequest(url, token)
 
-	// Print sendReques responce if not empty
+	// Print sendRequest responce if not empty
 	if len(response) >= 1 {
 		log.Println("Response Body:", string(response))
 	}
@@ -316,23 +316,28 @@ func dateStringToUnix(s string) time.Time {
 	return date
 }
 
-// Client for ILP
-func httpClient() *http.Client {
-	client := &http.Client{Timeout: 10 * time.Second}
-	return client
-}
-
 // Influx send request using ILP
-func sendRequest(client *http.Client, f *os.File, url string, token string) []byte {
+func sendRequest(url string, token string) []byte {
+	const ilpFileName = "InfluxLineProtocol.txt"
+
 	endpoint := url + "/api/v2/write?org=dude&bucket=dude&precision=s"
 	Token := "Token " + token
 
-	req, err := http.NewRequest("POST", endpoint, f)
+	// Client for ILP
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	// Open ILP file
+	ilpFile, err := os.Open(ilpFileName)
+	if err != nil {
+		log.Fatalf("Error Occurred opening ILP file. %+v", err)
+	}
+	defer ilpFile.Close()
+
+	req, err := http.NewRequest("POST", endpoint, ilpFile)
 	if err != nil {
 		log.Fatalf("Error Occurred. %+v", err)
 	}
 
-	// 	req.Header.Set("Authorization", "Token my-super-secret-auth-token")
 	req.Header.Set("Authorization", Token)
 	// req.Header.Set("Content-Encoding", "gzip")
 	req.Header.Set("Content-Type", "text/plain; charset=utf-8")
@@ -344,13 +349,16 @@ func sendRequest(client *http.Client, f *os.File, url string, token string) []by
 		log.Fatalf("Error sending request to API endpoint. %+v", err)
 	}
 
-	// Close the connection to reuse it
+	// Close the connection
 	defer response.Body.Close()
 
 	body, err := io.ReadAll(response.Body)
 	if err != nil {
 		log.Fatalf("Couldn't parse response body. %+v", err)
 	}
+
+	// Remove ilp file
+	os.Remove(ilpFileName)
 
 	return body
 }

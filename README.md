@@ -19,7 +19,7 @@ for troubleshooting.
 > - Docker for containers and network management
 > - Influx database for timed long term storage
 > - Gafana for data presentation
-> - Linux shell and dedicated go program for onboarding Dynon datalogs into database.
+> - Utility program (Mac, Windows, Linux) for onboarding Dynon datalogs into database.
 >
 > All of the selected are open source and free for personal usage.
 
@@ -114,7 +114,7 @@ Video : https://www.youtube.com/watch?v=mS26N5cLBe8&ab_channel=CodersArcade
 > Dynon datalog storage is limited and rewrited over time. So collect datalogs around every 8 flight hours or accept to loose information.
 
 ## Importing collected datalog into dude stack
-> The docker stack is provided with an additional program that is available in the Go/build directory.  
+> The docker stack is provided with an additional utility program that is available in the Go/build directory.  
 > There is one version per common operating system such as Darwing, Windows, Linux.
 > You can copy and rename the file in existing PATH or add the directory in PATH to get it available from anywhere.
 >
@@ -123,13 +123,13 @@ Video : https://www.youtube.com/watch?v=mS26N5cLBe8&ab_channel=CodersArcade
 >  Dude_windows_amd64 import --help (for Intel windows)  
 >  ...  
 >  This Will give you the expected parameters if any.  
->
-> [!TIPS]
+
+> [!TIP]
 >  It is recomended to create an hiden file (.Dude.yaml) in your $HOME directory to bypass the parameters.  
 
->  The following file must have the datalog parameter adjusted to your datalogs directory path!.
+>  The following file must have the **datalog parameter adjusted to your datalogs directory path!**.
 > 
-'''
+```
 ❯ cat $HOME/.Dude.yaml
 ---
 # Specify the influx database url
@@ -140,7 +140,7 @@ token: my-super-secret-auth-token
 
 # Specify the directory path of your datalogs
 datalog: /Users/lla/Documents/Laurent/Aviation/P300 Dude
-'''
+```
 
 > ![Screenshot of Dude help.](https://github.com/lla4u/Dude-Influx-Grafana/blob/main/Screenshots/Screenshot_dude_cli_help.png)
 >
