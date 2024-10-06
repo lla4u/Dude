@@ -151,12 +151,12 @@ datalog: /Users/lla/Documents/Laurent/Aviation/P300 Dude
 > 
 > ![Screenshot of Dude.](https://github.com/lla4u/Dude/blob/main/Screenshots/Screenshot_dude_cli.png)
 > Screenshot note:  
-> - Onboarding datalogs required 1.63 seconds  
-> - Submited datalogs file was having 164897 csv rows  
-> - Import saved 28860 rows into influx database.  
+> - Onboarding datalogs required 1.42 seconds  
+> - Submited datalogs file was having 151596 csv rows  
+> - Import saved 26742 rows into influx database.  
 >
 > Using datalog parameter:
-> ![Screenshot of dudeImport.](https://github.com/lla4u/Dude/blob/main/imageScreenshots/Screenshot_dude_cli_datalog.png)
+> ![Screenshot of dudeImport.](https://github.com/lla4u/Dude/blob/main/Screenshots/Screenshot_dude_cli_datalog.png)
 
 > [!NOTE]
 > Dude Import utility tool only import new datalogs! Imported.txt file is created into the datalog directory after import and hold the already imported datalog files.
