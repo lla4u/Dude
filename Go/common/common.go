@@ -191,8 +191,6 @@ func Import(file string, verbose bool, url string, token string) {
 	}
 	defer ilpFile.Close()
 
-	//	defer os.Remove(f.Name())
-
 	// Consume channel
 	for r := range readChannel {
 		//
@@ -205,7 +203,15 @@ func Import(file string, verbose bool, url string, token string) {
 		//
 		if (StringToInt(r.GpsFix, verbose) >= 1) && (StringToInt(r.NumSatellites, verbose) >= 6) && (StringToFloat(r.GroundSpeed_Knots, verbose) >= 10) {
 
-			// Save only the first record
+			// Actually: Save only the first record
+			// TODO:
+			// 1/ Should be possible to store all datalog information as Influxdb only update modified mesurements
+			// 2/ Can also considere that if r.GpsDateTime is more than 1 second of last (gpsDateTime) we are
+			// working on another flight so a tag might be used ""
+			// EI:
+			// "datalog lat=%f,...""
+			// "datalog,tag=%d lat=%f,""
+			// In that case should be good to save the last tag into the imported.txt file.
 			if r.GpsDateTime != gpsDateTime {
 
 				// Print filtered record if verbose on
