@@ -25,9 +25,9 @@ for troubleshooting.
 
 ## What is provided
 > A local web interface to query flight data shuch as:
-> ![Screenshot of web interface.](https://github.com/lla4u/Dude-Influx-Grafana/blob/main/Screenshots/Screenshot_web_Interface.png)
+> ![Screenshot of web interface.](https://github.com/lla4u/Dude/blob/main/Screenshots/Screenshot_web_Interface.png)
 >
-> ![Screenshot of web interface 2.](https://github.com/lla4u/Dude-Influx-Grafana/blob/main/Screenshots/Screenshot_web_interface_2.png)
+> ![Screenshot of web interface 2.](https://github.com/lla4u/Dude/blob/main/Screenshots/Screenshot_web_interface_2.png)
 
 # Installation procedure
 
@@ -44,17 +44,16 @@ Video : https://www.youtube.com/watch?v=mS26N5cLBe8&ab_channel=CodersArcade
 1. Where the stack will be sitting:
    Open terminal, cmd and create your home install directory 
      cd /home/lla 
-     mkdir dude 
    then move into: 
-     cd dude
+     cd /home/lla
 
 2. Clone de github repo:
-   git clone https://github.com/lla4u/Dude-Influx-Grafana.git
+   git clone https://github.com/lla4u/Dude.git
    or
    Download and unzip zip archive downloaded from github.
 
 3. change directory to Dude-Influx-Grafana
-   cd Dude-Influx-Grafana
+   cd Dude
 
 4. Build the Docker stack using terminal: 
    docker-compose --env-file config.env up --build -d 
@@ -66,7 +65,7 @@ Video : https://www.youtube.com/watch?v=mS26N5cLBe8&ab_channel=CodersArcade
 5. Check:
    execute docker ps from the terminal
 
-   Having 3 conainers running you are good to go further ...
+   Having 2 conainers running you are good to go further ...
 ```
 > [!IMPORTANT]
 > Persistant data (InfluxDB & Grafana) will be stored into a local directory (Docker). Removing will result a loss of data.
@@ -75,14 +74,14 @@ Video : https://www.youtube.com/watch?v=mS26N5cLBe8&ab_channel=CodersArcade
 > Starting or stoping the Dude stack can be acheived using:
 > 1. Docker Dashboard
 >    - Starting
-> ![Screenshot Docker dashboard starting.](https://github.com/lla4u/Dude-Influx-Grafana/blob/main/images/Screenshot_docker_dashboard_start.png)
+> ![Screenshot Docker dashboard starting.](https://github.com/lla4u/Dude/blob/main/Screenshots/Screenshot_docker_dashboard_start.png)
 >
 >    - Stoping
-> ![Screenshot Docker dashboard stoping.](https://github.com/lla4u/Dude-Influx-Grafana/blob/main/images/Screenshot_docker_dashboard_stop.png)
+> ![Screenshot Docker dashboard stoping.](https://github.com/lla4u/Dude/blob/main/Screenshots/Screenshot_docker_dashboard_stop.png)
 >
 > 2. Command line
 >    - Open terminal and move to the Dude-Influx-Grafana directory
->      - cd /home/lla/dude/Dude-Influx-Grafana
+>      - cd /home/lla/dude/Dude
 >
 >    - Starting
 >      - docker compose up
@@ -142,7 +141,7 @@ token: my-super-secret-auth-token
 datalog: /Users/lla/Documents/Laurent/Aviation/P300 Dude
 ```
 
-> ![Screenshot of Dude help.](https://github.com/lla4u/Dude-Influx-Grafana/blob/main/images/Screenshot_dude_cli_help.png)
+> ![Screenshot of Dude help.](https://github.com/lla4u/Dude/blob/main/Screenshots/Screenshot_dude_cli_help.png)
 >
 > Process is as follow:
 > 1. Copy the usb key csv file(s) (USER_DATA_LOG.csv) into the Datalogs directory.
@@ -150,14 +149,14 @@ datalog: /Users/lla/Documents/Laurent/Aviation/P300 Dude
 > 2. Execute (Intel Mac):
 >  ./dudeImport_darwin_amd64 import
 > 
-> ![Screenshot of Dude.](https://github.com/lla4u/Dude-Influx-Grafana/blob/main/images/Screenshot_dude_cli.png)
+> ![Screenshot of Dude.](https://github.com/lla4u/Dude/blob/main/Screenshots/Screenshot_dude_cli.png)
 > Screenshot note:  
 > - Onboarding datalogs required 1.63 seconds  
 > - Submited datalogs file was having 164897 csv rows  
 > - Import saved 28860 rows into influx database.  
 >
 > Using datalog parameter:
-> ![Screenshot of dudeImport.](https://github.com/lla4u/Dude-Influx-Grafana/blob/main/images/Screenshot_dude_cli_datalog.png)
+> ![Screenshot of dudeImport.](https://github.com/lla4u/Dude/blob/main/imageScreenshots/Screenshot_dude_cli_datalog.png)
 
 > [!NOTE]
 > Dude Import utility tool only import new datalogs! Imported.txt file is created into the datalog directory after import and hold the already imported datalog files.
