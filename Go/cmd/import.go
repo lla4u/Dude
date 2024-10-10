@@ -22,7 +22,7 @@ var importCmd = &cobra.Command{
 			common.LogFlags()
 		}
 
-		// Look for files to import
+		// Look for datalog files to import
 		datalogs, err := common.WalkMatch(DatalogsDir, "*USER_LOG_DATA*.csv")
 		if err != nil {
 			log.Fatal(err)
@@ -33,16 +33,13 @@ var importCmd = &cobra.Command{
 		}
 
 		// Read imported datalog files
-		importedDatalogs, err := common.ReadImported(DatalogsDir)
-		if err != nil {
-			log.Fatalf("readLines: %v", err)
-		}
+		imported := common.ReadImported(DatalogsDir)
 
 		if Verbose {
-			fmt.Println("Got:", len(importedDatalogs), "imported datalog files")
+			fmt.Println("Got:", len(imported.Datalogs), "imported datalog files")
 		}
 
-		datalogsToImport := common.Diff(datalogs, importedDatalogs)
+		datalogsToImport := common.Diff(datalogs, imported.Datalogs)
 
 		// Display missing datalogs if verbose
 		if Verbose {
@@ -58,8 +55,13 @@ var importCmd = &cobra.Command{
 
 			for i, datatalog := range datalogsToImport {
 				fmt.Printf("Importing: %d %s", i+1, datatalog)
-				common.Import(datatalog, Verbose, InfluxURL, InfluxToken)
+				common.Import(&imported, datatalog, Verbose, InfluxURL, InfluxToken)
+				// Lastly add imported datalog & save into imported yml file
+				imported.Datalogs = append(imported.Datalogs, datatalog)
+				common.SaveImported(imported)
 			}
+			fmt.Printf("Datalogs: %d | Flights: %d\n", len(imported.Datalogs), len(imported.Flights))
+
 		}
 
 	},

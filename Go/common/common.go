@@ -1,7 +1,6 @@
 package common
 
 import (
-	"bufio"
 	"context"
 	"encoding/csv"
 	"fmt"
@@ -9,11 +8,13 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"time"
 
 	"github.com/gocarina/gocsv"
+	"gopkg.in/yaml.v3"
 
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	log "github.com/sirupsen/logrus"
@@ -52,6 +53,71 @@ type Datalog struct {
 	EGT2_Deg_C              string `csv:"EGT 2 (deg C)"`
 	CHTL_Deg_C              string `csv:"CHTL TEMPERATURE (deg C)"`
 	CHTR_Deg_C              string `csv:"CHTR TEMPERATURE (deg C)"`
+}
+
+type Flight struct {
+	Start    time.Time     `yaml:"start"`
+	End      time.Time     `yaml:"stop"`
+	Duration time.Duration `yaml:"duration"`
+}
+
+type Imported struct {
+	Datalogs []string `yaml:"datalogs"`
+	Flights  []Flight `yaml:"flights"`
+}
+
+// Read imported datalogs & flights
+func ReadImported(datalog string) Imported {
+	const fileName = "/imported.yml"
+	filePath := datalog + fileName
+
+	var data Imported
+
+	// Check file exist and create if not (needed at first run)
+	_, err := os.Stat(filePath)
+	if os.IsNotExist(err) {
+		file, err := os.Create(filePath)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+	}
+
+	yamlFile, err := os.ReadFile(filePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = yaml.Unmarshal(yamlFile, &data)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return data
+
+}
+
+// Save imported datalogs & flights
+func SaveImported(data Imported) {
+	const fileName = "/imported.yml"
+	file := filepath.Dir(data.Datalogs[0]) + fileName
+
+	// Marshal the structure
+	newYamlFile, err := yaml.Marshal(&data)
+	if err != nil {
+		panic(err)
+	}
+
+	f, err := os.Create(file)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	_, err = io.Writer.Write(f, newYamlFile)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func LogFlags() {
@@ -97,51 +163,6 @@ func WalkMatch(root, pattern string) ([]string, error) {
 	return matches, nil
 }
 
-// readLines reads a whole file into memory and returns a slice of its lines.
-func ReadImported(datalog string) ([]string, error) {
-	const fileName = "/imported.txt"
-	imported := datalog + fileName
-
-	// Create empty file if not found
-	file, err := os.OpenFile(imported, os.O_CREATE|os.O_RDONLY, 0644)
-	// file, err := os.Open(path)
-	if err != nil {
-		return nil, err
-	}
-
-	defer file.Close()
-
-	var lines []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		lines = append(lines, scanner.Text())
-	}
-	return lines, scanner.Err()
-}
-
-// DatalogHistory writes the imported datalog to the history (imported.txt).
-func DatalogHistory(datalogfile string) {
-	const fileName = "/imported.txt"
-	dir := filepath.Dir(datalogfile)
-	file := dir + fileName
-
-	importedfile, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-
-	if err != nil {
-		log.Fatal("Could not open file", err)
-	}
-
-	defer importedfile.Close()
-
-	_, err2 := importedfile.WriteString(datalogfile + "\n")
-
-	if err2 != nil {
-		log.Fatal("Could not write datalog to imported.txt", err)
-	} else {
-		fmt.Println("Datalog appended to imported.txt")
-	}
-}
-
 // Strictly compare one slice against the other
 func Diff(a []string, b []string) []string {
 	// Turn b into a map
@@ -164,7 +185,15 @@ func Diff(a []string, b []string) []string {
 }
 
 // Import datalog file into Influx database
-func Import(file string, verbose bool, url string, token string) {
+func Import(imported *Imported, file string, verbose bool, url string, token string) {
+
+	var gpsDateTime string
+	var influxCount int
+	var csvCount int
+	var currentTime time.Time
+	var lastTime time.Time
+	var startTime time.Time
+	var skiped int
 
 	// For import timing
 	now := time.Now()
@@ -178,56 +207,80 @@ func Import(file string, verbose bool, url string, token string) {
 	}
 	defer readFile.Close()
 
-	csvCount := 0
 	readFromCSV(readFile, readChannel)
 
-	var gpsDateTime string
-	influxCount := 0
-
-	// Create file that will hold Influx Line Protocol data
+	// Create / replace file that will hold Influx Line Protocol data
 	ilpFile, err := os.Create("InfluxLineProtocol.txt")
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer ilpFile.Close()
 
-	// Consume channel
+	// Consume CSV channel
 	for r := range readChannel {
 		//
 		// Influxdb import:
 		//
-		// A valid datalog require:
-		//   1: valid gps Fix,
-		//   2: Number of satellites up to 6
-		//   3: Ground speed up to 10 Kts
-		//
+		// Update the csvCount
+		csvCount++
+		// A valid datalog require a valid gps Fix, Number of satellites up to 6, Ground speed up to 10 Kts
 		if (StringToInt(r.GpsFix, verbose) >= 1) && (StringToInt(r.NumSatellites, verbose) >= 6) && (StringToFloat(r.GroundSpeed_Knots, verbose) >= 10) {
 
-			// Actually: Save only the first record
-			// TODO:
-			// 1/ Should be possible to store all datalog information as Influxdb only update modified mesurements
-			// 2/ Can also considere that if r.GpsDateTime is more than 1 second of last (gpsDateTime) we are
-			// working on another flight so a tag might be used ""
-			// EI:
-			// "datalog lat=%f,...""
-			// "datalog,tag=%d lat=%f,""
-			// In that case should be good to save the last tag into the imported.txt file.
+			currentTime, err = time.Parse("2006-01-02 15:04:05", r.GpsDateTime)
+			if err != nil {
+				log.Fatal(csvCount, err)
+			}
+
+			// Skip already recorded flight data
+			if existingFlight(imported, currentTime) {
+				skiped++
+				continue
+			}
+
+			// One record sample per second at today
 			if r.GpsDateTime != gpsDateTime {
+
+				// A new flight if record stop duration is up to 10 minutes
+				if currentTime.Sub(lastTime).Minutes() >= 10 {
+
+					var flight Flight
+
+					flight.Start = startTime
+					flight.End = lastTime
+					flight.Duration = lastTime.Sub(startTime)
+
+					if flight.Duration != 0 {
+						imported.Flights = append(imported.Flights, flight)
+
+						// Clean
+						imported.Flights = uniqueFlight(imported.Flights)
+
+						slices.SortFunc(imported.Flights,
+							func(a, b Flight) int {
+								return a.Start.Compare(b.Start)
+							})
+
+					}
+
+					startTime = currentTime
+
+				}
 
 				// Print filtered record if verbose on
 				if verbose {
 					// fmt.Printf("%+v\n", r)
 				}
-				// Save record data into the temp file
-				fmt.Fprintf(ilpFile, "datalog lat=%f,lon=%f,alt=%s,GS=%s,IAS=%s,TAS=%s,VSpeed=%d,Volts=%s,Amps=%.2f,CHTR=%.2f,CHTL=%.2f,EGT1=%d,EGT2=%d,Pitch=%.2f,Roll=%.2f,Mag=%.2f,VertAccel=%.2f,LatAccel=%.2f,OAT=%d,OilTemp=%d,OilPress=%d,RPM=%d,MAP=%.2f,FuelPress=%.2f,FuelFlow=%.2f,FuelRemaining=%.2f %d\n",
+
+				// Save record data into the influxdb line protocol file
+				fmt.Fprintf(ilpFile, "datalog lat=%f,lon=%f,alt=%d,GS=%.2f,IAS=%.2f,TAS=%.2f,VSpeed=%d,Volts=%.2f,Amps=%.2f,CHTR=%.2f,CHTL=%.2f,EGT1=%d,EGT2=%d,Pitch=%.2f,Roll=%.2f,Mag=%.2f,VertAccel=%.2f,LatAccel=%.2f,OAT=%d,OilTemp=%d,OilPress=%d,RPM=%d,MAP=%.2f,FuelPress=%.2f,FuelFlow=%.2f,FuelRemaining=%.2f %d\n",
 					StringToFloat(r.Lat, verbose),
 					StringToFloat(r.Lon, verbose),
-					r.Alt,
-					r.GroundSpeed_Knots,
-					r.IndicatedAirspeed_Knots,
-					r.TrueAirspeed_Knots,
+					StringToInt(r.Alt, verbose),
+					StringToFloat(r.GroundSpeed_Knots, verbose),
+					StringToFloat(r.IndicatedAirspeed_Knots, verbose),
+					StringToFloat(r.TrueAirspeed_Knots, verbose),
 					StringToInt(r.VerticalSpeed_ft_min, verbose),
-					r.Volts,
+					StringToFloat(r.Volts, verbose),
 					StringToFloat(r.Amps, verbose),
 					StringToFloat(r.CHTR_Deg_C, verbose),
 					StringToFloat(r.CHTL_Deg_C, verbose),
@@ -250,12 +303,11 @@ func Import(file string, verbose bool, url string, token string) {
 
 				// Update the gpsDateTime and influx record count
 				gpsDateTime = r.GpsDateTime
+				lastTime = currentTime
 				influxCount++
 			}
 
 		}
-		// Update the csvCount
-		csvCount++
 
 	}
 	ilpFile.Close()
@@ -269,9 +321,7 @@ func Import(file string, verbose bool, url string, token string) {
 	}
 
 	// Append record information
-	fmt.Println(" -", time.Since(now), csvCount, influxCount)
-
-	DatalogHistory(file)
+	fmt.Println(" -", time.Since(now), csvCount, influxCount, skiped)
 }
 
 // Read CSV
@@ -367,4 +417,36 @@ func sendRequest(url string, token string) []byte {
 	os.Remove(ilpFileName)
 
 	return body
+}
+
+// One flight at a time
+func uniqueFlight(stringSlice []Flight) []Flight {
+	keys := make(map[time.Time]bool)
+	list := []Flight{}
+	for _, entry := range stringSlice {
+		if _, value := keys[entry.Start]; !value {
+			keys[entry.Start] = true
+			list = append(list, entry)
+		}
+	}
+	return list
+}
+
+// Helper function for skip
+func timeIsBetween(t, min, max time.Time) bool {
+	if min.After(max) {
+		min, max = max, min
+	}
+	return (t.Equal(min) || t.After(min)) && (t.Equal(max) || t.Before(max))
+}
+
+// Skip logic on CSV record already onboarded
+func existingFlight(i *Imported, currentTime time.Time) bool {
+	for _, flight := range i.Flights {
+		//fmt.Println("checking:", currentTime, " with:", flight.Start, flight.End)
+		if timeIsBetween(currentTime, flight.Start, flight.End) {
+			return true
+		}
+	}
+	return false
 }
