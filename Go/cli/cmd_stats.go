@@ -38,7 +38,10 @@ func runstatsJob() (err error) {
 	}
 
 	// Create new app instance
-	newApp := app.NewApplication()
+	newApp := app.NewApplication(app.VersionInfo{
+		Version: Version,
+		Commit:  CommitHash,
+	})
 
 	err = newApp.Stats(GlobalConfig.DatalogPath, GlobalConfig.Location)
 

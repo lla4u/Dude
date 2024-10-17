@@ -31,7 +31,10 @@ func runRootJob() (err error) {
 	GlobalConfig.Print()
 
 	// Create new app instance
-	newApp := app.NewApplication()
+	newApp := app.NewApplication(app.VersionInfo{
+		Version: Version,
+		Commit:  CommitHash,
+	})
 
 	return newApp.Start()
 }
