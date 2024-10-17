@@ -38,11 +38,9 @@ func runimportJob() (err error) {
 	}
 
 	// Create new app instance
-	newApp := app.NewApplication(app.VersionInfo {
-		Version: Version,
-		Commit:  CommitHash,
-		}
-)
+	newApp := app.NewApplication(app.VersionInfo{
+		Version: "v1.0.0",
+	})
 
 	err = newApp.Import(GlobalConfig.DatalogPath, GlobalConfig.Verbose, GlobalConfig.I_Url, GlobalConfig.I_Token)
 
